@@ -18,17 +18,28 @@ void textFile(FILE *readPtr);
 void updateRecord(FILE *fPtr);
 void newRecord(FILE *fPtr);
 void deleteRecord(FILE *fPtr);
+void clearInputBuffer();
 
 int main(int argc, char *argv[])
 {
     FILE *cfPtr;         // credit.dat file pointer
     unsigned int choice; // user's choice
 
-    // fopen opens the file; exits if file cannot be opened
+    // fopen opens the file in read/write binary mode
     if ((cfPtr = fopen("credit.dat", "rb+")) == NULL)
     {
-        printf("%s: File could not be opened.\n", argv[0]);
-        exit(-1);
+        // If it doesn't exist, create it in write/read binary mode
+        if ((cfPtr = fopen("credit.dat", "wb+")) == NULL) {
+            printf("%s: File could not be opened or created.\n", argv[0]);
+            exit(-1);
+        }
+        
+        // Initialize with 100 blank records
+        struct clientData blankClient = {0, "", "", 0.0};
+        for (unsigned int i = 1; i <= 100; ++i) {
+            fwrite(&blankClient, sizeof(struct clientData), 1, cfPtr);
+        }
+        rewind(cfPtr); // Go back to start
     }
 
     // enable user to specify action
@@ -107,7 +118,10 @@ void updateRecord(FILE *fPtr)
 
     // obtain number of account to update
     printf("%s", "Enter account to update ( 1 - 100 ): ");
-    scanf("%d", &account);
+    while (scanf("%u", &account) != 1 || account < 1 || account > 100) {
+        printf("Invalid input. Enter a valid account number ( 1 - 100 ): ");
+        clearInputBuffer();
+    }
 
     // move file pointer to correct record in file
     fseek(fPtr, (account - 1) * sizeof(struct clientData), SEEK_SET);
@@ -124,7 +138,10 @@ void updateRecord(FILE *fPtr)
 
         // request transaction amount from user
         printf("%s", "Enter charge ( + ) or payment ( - ): ");
-        scanf("%lf", &transaction);
+        while (scanf("%lf", &transaction) != 1) {
+            printf("Invalid input. Enter charge ( + ) or payment ( - ): ");
+            clearInputBuffer();
+        }
         client.balance += transaction; // update record balance
 
         printf("%-6d%-16s%-11s%10.2f\n", client.acctNum, client.lastName, client.firstName, client.balance);
@@ -146,7 +163,10 @@ void deleteRecord(FILE *fPtr)
 
     // obtain number of account to delete
     printf("%s", "Enter account number to delete ( 1 - 100 ): ");
-    scanf("%d", &accountNum);
+    while (scanf("%u", &accountNum) != 1 || accountNum < 1 || accountNum > 100) {
+        printf("Invalid input. Enter a valid account number ( 1 - 100 ): ");
+        clearInputBuffer();
+    }
 
     // move file pointer to correct record in file
     fseek(fPtr, (accountNum - 1) * sizeof(struct clientData), SEEK_SET);
@@ -175,7 +195,10 @@ void newRecord(FILE *fPtr)
 
     // obtain number of account to create
     printf("%s", "Enter new account number ( 1 - 100 ): ");
-    scanf("%d", &accountNum);
+    while (scanf("%u", &accountNum) != 1 || accountNum < 1 || accountNum > 100) {
+        printf("Invalid input. Enter a valid account number ( 1 - 100 ): ");
+        clearInputBuffer();
+    }
 
     // move file pointer to correct record in file
     fseek(fPtr, (accountNum - 1) * sizeof(struct clientData), SEEK_SET);
@@ -213,6 +236,15 @@ unsigned int enterChoice(void)
                  "4 - delete an account\n"
                  "5 - end program\n? ");
 
-    scanf("%u", &menuChoice); // receive choice from user
+    while (scanf("%u", &menuChoice) != 1) {
+        printf("Invalid input. Please enter a valid number.\n? ");
+        clearInputBuffer();
+    } // receive choice from user
     return menuChoice;
 } // end function enterChoice
+
+// Helper function to clear input buffer
+void clearInputBuffer() {
+    int c;
+    while ((c = getchar()) != '\n' && c != EOF) { }
+}

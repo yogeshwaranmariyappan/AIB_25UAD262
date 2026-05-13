@@ -71,6 +71,7 @@ int main(int argc, char *argv[])
     }     // end while
 
     fclose(cfPtr); // fclose closes the file
+    return 0;
 } // end main
 
 // create formatted text file for printing
@@ -121,7 +122,7 @@ void updateRecord(FILE *fPtr)
     }
 
     // move file pointer to correct record in file
-    fseek(fPtr, (account - 1) * sizeof(struct clientData), SEEK_SET);
+    fseek(fPtr, (long)(account - 1) * sizeof(struct clientData), SEEK_SET);
     // read record from file
     fread(&client, sizeof(struct clientData), 1, fPtr);
     // display error if account does not exist
@@ -145,7 +146,7 @@ void updateRecord(FILE *fPtr)
 
         // move file pointer to correct record in file
         // move back by 1 record length
-        fseek(fPtr, -sizeof(struct clientData), SEEK_CUR);
+        fseek(fPtr, -(long)sizeof(struct clientData), SEEK_CUR);
         // write updated record over old record in file
         fwrite(&client, sizeof(struct clientData), 1, fPtr);
     } // end else
@@ -166,7 +167,7 @@ void deleteRecord(FILE *fPtr)
     }
 
     // move file pointer to correct record in file
-    fseek(fPtr, (accountNum - 1) * sizeof(struct clientData), SEEK_SET);
+    fseek(fPtr, (long)(accountNum - 1) * sizeof(struct clientData), SEEK_SET);
     // read record from file
     fread(&client, sizeof(struct clientData), 1, fPtr);
     // display error if record does not exist
@@ -177,7 +178,7 @@ void deleteRecord(FILE *fPtr)
     else
     { // delete record
         // move file pointer to correct record in file
-        fseek(fPtr, (accountNum - 1) * sizeof(struct clientData), SEEK_SET);
+        fseek(fPtr, (long)(accountNum - 1) * sizeof(struct clientData), SEEK_SET);
         // replace existing record with blank record
         fwrite(&blankClient, sizeof(struct clientData), 1, fPtr);
     } // end else
@@ -198,7 +199,7 @@ void newRecord(FILE *fPtr)
     }
 
     // move file pointer to correct record in file
-    fseek(fPtr, (accountNum - 1) * sizeof(struct clientData), SEEK_SET);
+    fseek(fPtr, (long)(accountNum - 1) * sizeof(struct clientData), SEEK_SET);
     // read record from file
     fread(&client, sizeof(struct clientData), 1, fPtr);
     // display error if account already exists
@@ -214,7 +215,7 @@ void newRecord(FILE *fPtr)
 
         client.acctNum = accountNum;
         // move file pointer to correct record in file
-        fseek(fPtr, (client.acctNum - 1) * sizeof(struct clientData), SEEK_SET);
+        fseek(fPtr, (long)(client.acctNum - 1) * sizeof(struct clientData), SEEK_SET);
         // insert record in file
         fwrite(&client, sizeof(struct clientData), 1, fPtr);
     } // end else

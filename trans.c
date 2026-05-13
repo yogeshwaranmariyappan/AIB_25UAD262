@@ -3,6 +3,9 @@
 // be placed in the file, and deletes data previously in the file.
 #include <stdio.h>
 #include <stdlib.h>
+
+#define MAX_ACCOUNTS 100 // maximum number of accounts
+
 // clientData structure definition
 struct clientData
 {
@@ -34,9 +37,9 @@ int main(int argc, char *argv[])
             exit(-1);
         }
         
-        // Initialize with 100 blank records
+        // Initialize with MAX_ACCOUNTS blank records
         struct clientData blankClient = {0, "", "", 0.0};
-        for (unsigned int i = 1; i <= 100; ++i) {
+        for (unsigned int i = 1; i <= MAX_ACCOUNTS; ++i) {
             if (fwrite(&blankClient, sizeof(struct clientData), 1, cfPtr) != 1) {
                 printf("Error: Could not initialize records.\n");
                 fclose(cfPtr);
@@ -119,9 +122,9 @@ void updateRecord(FILE *fPtr)
     struct clientData client = {0, "", "", 0.0};
 
     // obtain number of account to update
-    printf("%s", "Enter account to update ( 1 - 100 ): ");
-    while (scanf("%u", &account) != 1 || account < 1 || account > 100) {
-        printf("Invalid input. Enter a valid account number ( 1 - 100 ): ");
+    printf("Enter account to update ( 1 - %d ): ", MAX_ACCOUNTS);
+    while (scanf("%u", &account) != 1 || account < 1 || account > MAX_ACCOUNTS) {
+        printf("Invalid input. Enter a valid account number ( 1 - %d ): ", MAX_ACCOUNTS);
         clearInputBuffer();
     }
 
@@ -190,9 +193,9 @@ void deleteRecord(FILE *fPtr)
     unsigned int accountNum;                        // account number
 
     // obtain number of account to delete
-    printf("%s", "Enter account number to delete ( 1 - 100 ): ");
-    while (scanf("%u", &accountNum) != 1 || accountNum < 1 || accountNum > 100) {
-        printf("Invalid input. Enter a valid account number ( 1 - 100 ): ");
+    printf("Enter account number to delete ( 1 - %d ): ", MAX_ACCOUNTS);
+    while (scanf("%u", &accountNum) != 1 || accountNum < 1 || accountNum > MAX_ACCOUNTS) {
+        printf("Invalid input. Enter a valid account number ( 1 - %d ): ", MAX_ACCOUNTS);
         clearInputBuffer();
     }
 
@@ -246,9 +249,9 @@ void newRecord(FILE *fPtr)
     unsigned int accountNum; // account number
 
     // obtain number of account to create
-    printf("%s", "Enter new account number ( 1 - 100 ): ");
-    while (scanf("%u", &accountNum) != 1 || accountNum < 1 || accountNum > 100) {
-        printf("Invalid input. Enter a valid account number ( 1 - 100 ): ");
+    printf("Enter new account number ( 1 - %d ): ", MAX_ACCOUNTS);
+    while (scanf("%u", &accountNum) != 1 || accountNum < 1 || accountNum > MAX_ACCOUNTS) {
+        printf("Invalid input. Enter a valid account number ( 1 - %d ): ", MAX_ACCOUNTS);
         clearInputBuffer();
     }
 

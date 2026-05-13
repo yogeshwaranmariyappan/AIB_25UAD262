@@ -10,6 +10,10 @@
 #define LAST_NAME_LEN 15  // max length of last name
 #define FIRST_NAME_LEN 10 // max length of first name
 #define LOG_FILE "transactions.log" // transaction log filename
+#define BACKUP_FILE "credit.dat.bak" // backup filename
+#define MIN_BALANCE 0.0   // minimum allowed balance
+#define INTEREST_RATE 0.05 // annual interest rate (5%)
+#define PAGE_SIZE 10       // records per page for pagination
 
 // clientData structure definition
 typedef struct clientData
@@ -28,10 +32,19 @@ void newRecord(FILE *fPtr);      // create a new account record
 void deleteRecord(FILE *fPtr);   // delete an existing account record
 void viewRecord(FILE *fPtr);     // view a single account record
 void searchByName(FILE *fPtr);   // search records by last name
+void transferFunds(FILE *fPtr);  // transfer between two accounts
+void listAllAccounts(FILE *fPtr); // list all active accounts with pagination
+void showStatistics(FILE *fPtr); // display summary statistics
+void applyInterest(FILE *fPtr);  // apply interest to all accounts
+void viewTransactionLog(void);   // view recent transaction log entries
+void backupData(FILE *fPtr);     // backup credit.dat
+void restoreData(FILE **fPtrRef); // restore from backup
 void clearInputBuffer(void);     // clear stdin input buffer
+void clearScreen(void);          // clear console screen
 void logTransaction(unsigned int acctNum, const char *type,
                     double amount, double oldBal, double newBal); // log to file
 int compareByName(const void *a, const void *b); // comparator for qsort
+int compareByBalance(const void *a, const void *b); // sort by balance
 
 int main(int argc, char *argv[])
 {
@@ -61,35 +74,50 @@ int main(int argc, char *argv[])
     }
 
     // enable user to specify action
-    while ((choice = enterChoice()) != 7)
+    while ((choice = enterChoice()) != 14)
     {
+        clearScreen();
         switch (choice)
         {
-        // create text file from record file
         case 1:
             textFile(cfPtr);
             break;
-        // update record
         case 2:
             updateRecord(cfPtr);
             break;
-        // create record
         case 3:
             newRecord(cfPtr);
             break;
-        // delete existing record
         case 4:
             deleteRecord(cfPtr);
             break;
-        // view single record
         case 5:
             viewRecord(cfPtr);
             break;
-        // search by last name
         case 6:
             searchByName(cfPtr);
             break;
-        // display if user does not select valid choice
+        case 7:
+            transferFunds(cfPtr);
+            break;
+        case 8:
+            listAllAccounts(cfPtr);
+            break;
+        case 9:
+            showStatistics(cfPtr);
+            break;
+        case 10:
+            applyInterest(cfPtr);
+            break;
+        case 11:
+            viewTransactionLog();
+            break;
+        case 12:
+            backupData(cfPtr);
+            break;
+        case 13:
+            restoreData(&cfPtr);
+            break;
         default:
             puts("Incorrect choice");
             break;
@@ -97,6 +125,7 @@ int main(int argc, char *argv[])
     }     // end while
 
     fclose(cfPtr); // fclose closes the file
+    printf("Program ended. Goodbye!\n");
     return 0;
 } // end main
 

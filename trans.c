@@ -9,7 +9,6 @@
 #define MAX_ACCOUNTS 100  // maximum number of accounts
 #define LAST_NAME_LEN 15  // max length of last name
 #define FIRST_NAME_LEN 10 // max length of first name
-#define PIN_LEN 5         // max length of PIN (4 digits + null)
 #define LOG_FILE "transactions.log" // transaction log filename
 
 // clientData structure definition
@@ -19,7 +18,6 @@ typedef struct clientData
     char lastName[LAST_NAME_LEN];  // account last name
     char firstName[FIRST_NAME_LEN]; // account first name
     double balance;                // account balance
-    char pin[PIN_LEN];             // 4-digit PIN for security
 } ClientData;                      // end structure clientData
 
 // prototypes
@@ -34,7 +32,6 @@ void clearInputBuffer(void);     // clear stdin input buffer
 void logTransaction(unsigned int acctNum, const char *type,
                     double amount, double oldBal, double newBal); // log to file
 int compareByName(const void *a, const void *b); // comparator for qsort
-int verifyPin(const ClientData *client); // verify account PIN
 
 int main(int argc, char *argv[])
 {
@@ -52,7 +49,7 @@ int main(int argc, char *argv[])
         }
         
         // Initialize with MAX_ACCOUNTS blank records
-        ClientData blankClient = {0, "", "", 0.0, ""};
+        ClientData blankClient = {0, "", "", 0.0};
         for (unsigned int i = 1; i <= MAX_ACCOUNTS; ++i) {
             if (fwrite(&blankClient, sizeof(ClientData), 1, cfPtr) != 1) {
                 fprintf(stderr, "Error: Could not initialize records.\n");
@@ -110,7 +107,7 @@ void textFile(FILE *readPtr)
 {
     FILE *writePtr; // accounts.txt file pointer
     ClientData records[MAX_ACCOUNTS]; // array to hold all active records
-    ClientData client = {0, "", "", 0.0, ""};
+    ClientData client = {0, "", "", 0.0};
     int count = 0; // number of active records
 
     // fopen opens the file; exits if file cannot be opened
@@ -148,14 +145,13 @@ void textFile(FILE *readPtr)
 } // end function textFile
 
 // Update balance in an existing record
-// Requires PIN verification before modifying the balance
 // @param fPtr - pointer to the binary data file
 void updateRecord(FILE *fPtr)
 {
     unsigned int account; // account number
     double transaction;   // transaction amount
     // create clientData with no information
-    ClientData client = {0, "", "", 0.0, ""};
+    ClientData client = {0, "", "", 0.0};
 
     // obtain number of account to update
     printf("Enter account to update ( 1 - %d ): ", MAX_ACCOUNTS);
@@ -181,12 +177,6 @@ void updateRecord(FILE *fPtr)
     }
     else
     { // update record
-        // verify PIN before allowing changes
-        if (client.pin[0] != '\0' && !verifyPin(&client)) {
-            printf("Incorrect PIN. Access denied.\n");
-            return;
-        }
-
         printf("%-6d%-16s%-11s%10.2f\n\n", client.acctNum, client.lastName, client.firstName, client.balance);
 
         // request transaction amount from user
@@ -236,7 +226,7 @@ void updateRecord(FILE *fPtr)
 void deleteRecord(FILE *fPtr)
 {
     ClientData client;                          // stores record read from file
-    ClientData blankClient = {0, "", "", 0, ""}; // blank client
+    ClientData blankClient = {0, "", "", 0};     // blank client
     unsigned int accountNum;                        // account number
 
     // obtain number of account to delete
@@ -263,12 +253,6 @@ void deleteRecord(FILE *fPtr)
     } // end if
     else
     { // delete record
-        // verify PIN before allowing deletion
-        if (client.pin[0] != '\0' && !verifyPin(&client)) {
-            printf("Incorrect PIN. Access denied.\n");
-            return;
-        }
-
         // show record details before confirming
         printf("Account #%d: %s %s, Balance: %.2f\n",
                client.acctNum, client.firstName, client.lastName, client.balance);
@@ -298,7 +282,7 @@ void deleteRecord(FILE *fPtr)
 void newRecord(FILE *fPtr)
 {
     // create clientData with default information
-    ClientData client = {0, "", "", 0.0, ""};
+    ClientData client = {0, "", "", 0.0};
     unsigned int accountNum; // account number
 
     // obtain number of account to create
@@ -330,23 +314,6 @@ void newRecord(FILE *fPtr)
         while (scanf("%14s%9s%lf", client.lastName, client.firstName, &client.balance) != 3) {
             printf("Invalid input. Please enter lastname, firstname, balance\n? ");
             clearInputBuffer();
-        }
-
-        // ask user to set a PIN (optional)
-        printf("Set a 4-digit PIN for this account (or press Enter to skip): ");
-        clearInputBuffer();
-        char pinInput[PIN_LEN + 1] = "";
-        if (fgets(pinInput, sizeof(pinInput), stdin) != NULL) {
-            // remove trailing newline
-            pinInput[strcspn(pinInput, "\n")] = '\0';
-            if (strlen(pinInput) == 4) {
-                strncpy(client.pin, pinInput, PIN_LEN - 1);
-                client.pin[PIN_LEN - 1] = '\0';
-                printf("PIN set successfully.\n");
-            } else if (strlen(pinInput) > 0) {
-                printf("Invalid PIN (must be 4 digits). No PIN set.\n");
-                client.pin[0] = '\0';
-            }
         }
 
         client.acctNum = accountNum;
@@ -517,16 +484,3 @@ void logTransaction(unsigned int acctNum, const char *type,
 
     fclose(logFile);
 } // end function logTransaction
-
-// Verify the PIN for a given account
-// Prompts the user to enter PIN and compares with stored PIN
-// @param client - pointer to the ClientData record to verify
-// @return 1 if PIN matches, 0 if incorrect
-int verifyPin(const ClientData *client)
-{
-    char inputPin[PIN_LEN + 1] = "";
-    printf("Enter 4-digit PIN for account #%u: ", client->acctNum);
-    scanf("%4s", inputPin);
-    clearInputBuffer();
-    return (strcmp(inputPin, client->pin) == 0);
-} // end function verifyPin

@@ -3,25 +3,30 @@
 // be placed in the file, and deletes data previously in the file.
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
-#define MAX_ACCOUNTS 100 // maximum number of accounts
+#define MAX_ACCOUNTS 100  // maximum number of accounts
+#define LAST_NAME_LEN 15  // max length of last name
+#define FIRST_NAME_LEN 10 // max length of first name
 
 // clientData structure definition
 typedef struct clientData
 {
-    unsigned int acctNum; // account number
-    char lastName[15];    // account last name
-    char firstName[10];   // account first name
-    double balance;       // account balance
-} ClientData;             // end structure clientData
+    unsigned int acctNum;          // account number
+    char lastName[LAST_NAME_LEN];  // account last name
+    char firstName[FIRST_NAME_LEN]; // account first name
+    double balance;                // account balance
+} ClientData;                      // end structure clientData
 
 // prototypes
-unsigned int enterChoice(void);
-void textFile(FILE *readPtr);
-void updateRecord(FILE *fPtr);
-void newRecord(FILE *fPtr);
-void deleteRecord(FILE *fPtr);
-void clearInputBuffer();
+unsigned int enterChoice(void);  // display menu and get user choice
+void textFile(FILE *readPtr);    // export all records to text file
+void updateRecord(FILE *fPtr);   // update balance of existing record
+void newRecord(FILE *fPtr);      // create a new account record
+void deleteRecord(FILE *fPtr);   // delete an existing account record
+void viewRecord(FILE *fPtr);     // view a single account record
+void searchByName(FILE *fPtr);   // search records by last name
+void clearInputBuffer(void);     // clear stdin input buffer
 
 int main(int argc, char *argv[])
 {
@@ -51,7 +56,7 @@ int main(int argc, char *argv[])
     }
 
     // enable user to specify action
-    while ((choice = enterChoice()) != 5)
+    while ((choice = enterChoice()) != 7)
     {
         switch (choice)
         {
@@ -70,6 +75,14 @@ int main(int argc, char *argv[])
         // delete existing record
         case 4:
             deleteRecord(cfPtr);
+            break;
+        // view single record
+        case 5:
+            viewRecord(cfPtr);
+            break;
+        // search by last name
+        case 6:
+            searchByName(cfPtr);
             break;
         // display if user does not select valid choice
         default:
@@ -294,7 +307,88 @@ void newRecord(FILE *fPtr)
     } // end else
 } // end function newRecord
 
-// enable user to input menu choice
+// View a single account record by account number
+// @param fPtr - pointer to the binary data file
+void viewRecord(FILE *fPtr)
+{
+    unsigned int account; // account number
+    ClientData client = {0, "", "", 0.0};
+
+    printf("Enter account number to view ( 1 - %d ): ", MAX_ACCOUNTS);
+    while (scanf("%u", &account) != 1 || account < 1 || account > MAX_ACCOUNTS) {
+        printf("Invalid input. Enter a valid account number ( 1 - %d ): ", MAX_ACCOUNTS);
+        clearInputBuffer();
+    }
+
+    // move file pointer to correct record
+    if (fseek(fPtr, (long)(account - 1) * sizeof(ClientData), SEEK_SET) != 0) {
+        fprintf(stderr, "Error: Could not seek to account #%u.\n", account);
+        return;
+    }
+    // read record from file
+    if (fread(&client, sizeof(ClientData), 1, fPtr) != 1) {
+        fprintf(stderr, "Error: Could not read account #%u.\n", account);
+        return;
+    }
+
+    if (client.acctNum == 0) {
+        printf("Account #%u has no information.\n", account);
+    } else {
+        printf("\n%-6s%-16s%-11s%10s\n", "Acct", "Last Name", "First Name", "Balance");
+        printf("%-6u%-16s%-11s%10.2f\n", client.acctNum, client.lastName,
+               client.firstName, client.balance);
+    }
+} // end function viewRecord
+
+// Search and display all records matching a last name (case-insensitive)
+// @param fPtr - pointer to the binary data file
+void searchByName(FILE *fPtr)
+{
+    char searchName[LAST_NAME_LEN]; // name to search for
+    ClientData client = {0, "", "", 0.0};
+    int found = 0; // flag to track if any matches found
+
+    printf("Enter last name to search: ");
+    scanf("%14s", searchName);
+
+    rewind(fPtr); // start from beginning of file
+
+    printf("\n%-6s%-16s%-11s%10s\n", "Acct", "Last Name", "First Name", "Balance");
+    printf("----------------------------------------------\n");
+
+    // scan through all records
+    while (fread(&client, sizeof(ClientData), 1, fPtr) == 1) {
+        if (client.acctNum != 0) {
+            // case-insensitive comparison
+            int match = 1;
+            size_t len = strlen(searchName);
+            if (len != strlen(client.lastName)) {
+                match = 0;
+            } else {
+                for (size_t i = 0; i < len; ++i) {
+                    char a = client.lastName[i];
+                    char b = searchName[i];
+                    // convert to lowercase for comparison
+                    if (a >= 'A' && a <= 'Z') a += 32;
+                    if (b >= 'A' && b <= 'Z') b += 32;
+                    if (a != b) { match = 0; break; }
+                }
+            }
+            if (match) {
+                printf("%-6u%-16s%-11s%10.2f\n", client.acctNum, client.lastName,
+                       client.firstName, client.balance);
+                found = 1;
+            }
+        }
+    }
+
+    if (!found) {
+        printf("No accounts found with last name \"%s\".\n", searchName);
+    }
+} // end function searchByName
+
+// Display menu and get user choice
+// @return the menu option selected by the user
 unsigned int enterChoice(void)
 {
     unsigned int menuChoice; // variable to store user's choice
@@ -305,7 +399,9 @@ unsigned int enterChoice(void)
                  "2 - update an account\n"
                  "3 - add a new account\n"
                  "4 - delete an account\n"
-                 "5 - end program\n? ");
+                 "5 - view an account\n"
+                 "6 - search by last name\n"
+                 "7 - end program\n? ");
 
     while (scanf("%u", &menuChoice) != 1) {
         printf("Invalid input. Please enter a valid number.\n? ");
@@ -314,8 +410,9 @@ unsigned int enterChoice(void)
     return menuChoice;
 } // end function enterChoice
 
-// Helper function to clear input buffer
-void clearInputBuffer() {
+// Clear stdin input buffer to prevent leftover characters
+// from affecting subsequent scanf calls
+void clearInputBuffer(void) {
     int c;
     while ((c = getchar()) != '\n' && c != EOF) { }
 }

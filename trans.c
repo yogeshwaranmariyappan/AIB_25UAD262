@@ -150,6 +150,20 @@ void updateRecord(FILE *fPtr)
             printf("Invalid input. Enter charge ( + ) or payment ( - ): ");
             clearInputBuffer();
         }
+
+        // warn if balance would go negative
+        if (client.balance + transaction < 0) {
+            printf("Warning: This will result in a negative balance (%.2f).\n",
+                   client.balance + transaction);
+            printf("Proceed? (y/n): ");
+            clearInputBuffer();
+            int ch = getchar();
+            if (ch != 'y' && ch != 'Y') {
+                printf("Transaction cancelled.\n");
+                return;
+            }
+        }
+
         client.balance += transaction; // update record balance
 
         printf("%-6d%-16s%-11s%10.2f\n", client.acctNum, client.lastName, client.firstName, client.balance);
@@ -199,6 +213,17 @@ void deleteRecord(FILE *fPtr)
     } // end if
     else
     { // delete record
+        // show record details before confirming
+        printf("Account #%d: %s %s, Balance: %.2f\n",
+               client.acctNum, client.firstName, client.lastName, client.balance);
+        printf("Are you sure you want to delete this account? (y/n): ");
+        clearInputBuffer();
+        int ch = getchar();
+        if (ch != 'y' && ch != 'Y') {
+            printf("Deletion cancelled.\n");
+            return;
+        }
+
         // move file pointer to correct record in file
         if (fseek(fPtr, (long)(accountNum - 1) * sizeof(struct clientData), SEEK_SET) != 0) {
             printf("Error: Could not seek to delete record.\n");
@@ -209,6 +234,7 @@ void deleteRecord(FILE *fPtr)
             printf("Error: Could not delete record.\n");
             return;
         }
+        printf("Account #%d deleted successfully.\n", accountNum);
     } // end else
 } // end function deleteRecord
 
@@ -245,7 +271,10 @@ void newRecord(FILE *fPtr)
     { // create record
         // user enters last name, first name and balance
         printf("%s", "Enter lastname, firstname, balance\n? ");
-        scanf("%14s%9s%lf", client.lastName, client.firstName, &client.balance);
+        while (scanf("%14s%9s%lf", client.lastName, client.firstName, &client.balance) != 3) {
+            printf("Invalid input. Please enter lastname, firstname, balance\n? ");
+            clearInputBuffer();
+        }
 
         client.acctNum = accountNum;
         // move file pointer to correct record in file

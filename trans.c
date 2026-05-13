@@ -366,7 +366,7 @@ void newRecord(FILE *fPtr)
 void viewRecord(FILE *fPtr)
 {
     unsigned int account; // account number
-    ClientData client = {0, "", "", 0.0, ""};
+    ClientData client = {0, "", "", 0.0};
 
     printf("Enter account number to view ( 1 - %d ): ", MAX_ACCOUNTS);
     while (scanf("%u", &account) != 1 || account < 1 || account > MAX_ACCOUNTS) {
@@ -399,7 +399,7 @@ void viewRecord(FILE *fPtr)
 void searchByName(FILE *fPtr)
 {
     char searchName[LAST_NAME_LEN]; // name to search for
-    ClientData client = {0, "", "", 0.0, ""};
+    ClientData client = {0, "", "", 0.0};
     int found = 0; // flag to track if any matches found
 
     printf("Enter last name to search: ");
@@ -447,15 +447,22 @@ unsigned int enterChoice(void)
 {
     unsigned int menuChoice; // variable to store user's choice
     // display available options
-    printf("%s", "\nEnter your choice\n"
-                 "1 - store a formatted text file of accounts called\n"
-                 "    \"accounts.txt\" for printing\n"
-                 "2 - update an account\n"
-                 "3 - add a new account\n"
-                 "4 - delete an account\n"
-                 "5 - view an account\n"
-                 "6 - search by last name\n"
-                 "7 - end program\n? ");
+    printf("\n========== BANK ACCOUNT MANAGEMENT ==========\n"
+           " 1 - Export accounts to text file\n"
+           " 2 - Update an account\n"
+           " 3 - Add a new account\n"
+           " 4 - Delete an account\n"
+           " 5 - View an account\n"
+           " 6 - Search by last name\n"
+           " 7 - Transfer funds\n"
+           " 8 - List all accounts\n"
+           " 9 - Account statistics\n"
+           "10 - Apply interest\n"
+           "11 - View transaction log\n"
+           "12 - Backup data\n"
+           "13 - Restore data\n"
+           "14 - Exit program\n"
+           "=============================================\n? ");
 
     while (scanf("%u", &menuChoice) != 1) {
         printf("Invalid input. Please enter a valid number.\n? ");
@@ -513,3 +520,266 @@ void logTransaction(unsigned int acctNum, const char *type,
 
     fclose(logFile);
 } // end function logTransaction
+
+// Transfer funds between two accounts
+// @param fPtr - pointer to the binary data file
+void transferFunds(FILE *fPtr)
+{
+    unsigned int fromAcct, toAcct;
+    double amount;
+    ClientData fromClient = {0, "", "", 0.0};
+    ClientData toClient = {0, "", "", 0.0};
+
+    printf("Enter source account ( 1 - %d ): ", MAX_ACCOUNTS);
+    while (scanf("%u", &fromAcct) != 1 || fromAcct < 1 || fromAcct > MAX_ACCOUNTS) {
+        printf("Invalid. Enter source account ( 1 - %d ): ", MAX_ACCOUNTS);
+        clearInputBuffer();
+    }
+    printf("Enter destination account ( 1 - %d ): ", MAX_ACCOUNTS);
+    while (scanf("%u", &toAcct) != 1 || toAcct < 1 || toAcct > MAX_ACCOUNTS) {
+        printf("Invalid. Enter destination account ( 1 - %d ): ", MAX_ACCOUNTS);
+        clearInputBuffer();
+    }
+    if (fromAcct == toAcct) {
+        printf("Cannot transfer to the same account.\n");
+        return;
+    }
+
+    // read source account
+    fseek(fPtr, (long)(fromAcct - 1) * sizeof(ClientData), SEEK_SET);
+    fread(&fromClient, sizeof(ClientData), 1, fPtr);
+    if (fromClient.acctNum == 0) { printf("Source account #%u does not exist.\n", fromAcct); return; }
+
+    // read destination account
+    fseek(fPtr, (long)(toAcct - 1) * sizeof(ClientData), SEEK_SET);
+    fread(&toClient, sizeof(ClientData), 1, fPtr);
+    if (toClient.acctNum == 0) { printf("Destination account #%u does not exist.\n", toAcct); return; }
+
+    printf("Transfer amount: ");
+    while (scanf("%lf", &amount) != 1 || amount <= 0) {
+        printf("Invalid. Enter a positive amount: ");
+        clearInputBuffer();
+    }
+
+    if (fromClient.balance - amount < MIN_BALANCE) {
+        printf("Insufficient funds. Source balance: %.2f\n", fromClient.balance);
+        return;
+    }
+
+    double oldFrom = fromClient.balance, oldTo = toClient.balance;
+    fromClient.balance -= amount;
+    toClient.balance += amount;
+
+    // write updated source
+    fseek(fPtr, (long)(fromAcct - 1) * sizeof(ClientData), SEEK_SET);
+    fwrite(&fromClient, sizeof(ClientData), 1, fPtr);
+    // write updated destination
+    fseek(fPtr, (long)(toAcct - 1) * sizeof(ClientData), SEEK_SET);
+    fwrite(&toClient, sizeof(ClientData), 1, fPtr);
+
+    printf("Transferred %.2f from #%u to #%u.\n", amount, fromAcct, toAcct);
+    printf("  #%u balance: %.2f -> %.2f\n", fromAcct, oldFrom, fromClient.balance);
+    printf("  #%u balance: %.2f -> %.2f\n", toAcct, oldTo, toClient.balance);
+
+    logTransaction(fromAcct, "TRANSFER_OUT", -amount, oldFrom, fromClient.balance);
+    logTransaction(toAcct, "TRANSFER_IN", amount, oldTo, toClient.balance);
+} // end function transferFunds
+
+// List all active accounts with pagination
+// @param fPtr - pointer to the binary data file
+void listAllAccounts(FILE *fPtr)
+{
+    ClientData client = {0, "", "", 0.0};
+    int count = 0, page = 0;
+
+    rewind(fPtr);
+    printf("\n%-6s%-16s%-11s%10s\n", "Acct", "Last Name", "First Name", "Balance");
+    printf("----------------------------------------------\n");
+
+    while (fread(&client, sizeof(ClientData), 1, fPtr) == 1) {
+        if (client.acctNum != 0) {
+            printf("%-6u%-16s%-11s%10.2f\n", client.acctNum, client.lastName,
+                   client.firstName, client.balance);
+            count++;
+            if (count % PAGE_SIZE == 0) {
+                page++;
+                printf("--- Page %d (%d accounts shown) - Press Enter for more ---", page, count);
+                clearInputBuffer();
+                getchar();
+            }
+        }
+    }
+    printf("----------------------------------------------\n");
+    printf("Total: %d active account(s).\n", count);
+} // end function listAllAccounts
+
+// Display summary statistics for all accounts
+// @param fPtr - pointer to the binary data file
+void showStatistics(FILE *fPtr)
+{
+    ClientData client = {0, "", "", 0.0};
+    int count = 0;
+    double total = 0, highest = 0, lowest = 0;
+    unsigned int highAcct = 0, lowAcct = 0;
+
+    rewind(fPtr);
+    while (fread(&client, sizeof(ClientData), 1, fPtr) == 1) {
+        if (client.acctNum != 0) {
+            if (count == 0) {
+                highest = lowest = client.balance;
+                highAcct = lowAcct = client.acctNum;
+            }
+            total += client.balance;
+            if (client.balance > highest) { highest = client.balance; highAcct = client.acctNum; }
+            if (client.balance < lowest) { lowest = client.balance; lowAcct = client.acctNum; }
+            count++;
+        }
+    }
+
+    if (count == 0) {
+        printf("No active accounts found.\n");
+        return;
+    }
+
+    printf("\n============ ACCOUNT STATISTICS ============\n");
+    printf("  Total accounts   : %d\n", count);
+    printf("  Total balance    : %.2f\n", total);
+    printf("  Average balance  : %.2f\n", total / count);
+    printf("  Highest balance  : %.2f (Account #%u)\n", highest, highAcct);
+    printf("  Lowest balance   : %.2f (Account #%u)\n", lowest, lowAcct);
+    printf("============================================\n");
+} // end function showStatistics
+
+// Apply annual interest rate to all active accounts
+// @param fPtr - pointer to the binary data file
+void applyInterest(FILE *fPtr)
+{
+    ClientData client = {0, "", "", 0.0};
+    int count = 0;
+
+    printf("Apply %.1f%% interest to all accounts? (y/n): ", INTEREST_RATE * 100);
+    clearInputBuffer();
+    int ch = getchar();
+    if (ch != 'y' && ch != 'Y') { printf("Interest application cancelled.\n"); return; }
+
+    rewind(fPtr);
+    while (fread(&client, sizeof(ClientData), 1, fPtr) == 1) {
+        if (client.acctNum != 0 && client.balance > 0) {
+            double oldBal = client.balance;
+            double interest = client.balance * INTEREST_RATE;
+            client.balance += interest;
+
+            // seek back and overwrite
+            fseek(fPtr, -(long)sizeof(ClientData), SEEK_CUR);
+            fwrite(&client, sizeof(ClientData), 1, fPtr);
+            fflush(fPtr); // flush before next read
+
+            logTransaction(client.acctNum, "INTEREST", interest, oldBal, client.balance);
+            count++;
+        }
+    }
+    printf("Interest applied to %d account(s).\n", count);
+} // end function applyInterest
+
+// View recent entries from the transaction log file
+void viewTransactionLog(void)
+{
+    FILE *logFile = fopen(LOG_FILE, "r");
+    if (logFile == NULL) {
+        printf("No transaction log found.\n");
+        return;
+    }
+
+    // read all lines and display last 20
+    char lines[100][150]; // store up to 100 recent lines
+    int lineCount = 0;
+
+    while (fgets(lines[lineCount % 100], 150, logFile) != NULL) {
+        lineCount++;
+    }
+    fclose(logFile);
+
+    int total = lineCount;
+    int start = (lineCount > 20) ? lineCount - 20 : 0;
+    int displayStart = (total > 100) ? (total - 100) : 0;
+
+    printf("\n========== TRANSACTION LOG (last 20 of %d entries) ==========\n", total);
+    for (int i = start; i < lineCount && i < start + 20; i++) {
+        printf("%s", lines[(displayStart + i) % 100]);
+    }
+    printf("=============================================================\n");
+} // end function viewTransactionLog
+
+// Backup credit.dat to credit.dat.bak
+// @param fPtr - pointer to the binary data file
+void backupData(FILE *fPtr)
+{
+    FILE *backup = fopen(BACKUP_FILE, "wb");
+    if (backup == NULL) {
+        fprintf(stderr, "Error: Could not create backup file.\n");
+        return;
+    }
+
+    ClientData client;
+    rewind(fPtr);
+    while (fread(&client, sizeof(ClientData), 1, fPtr) == 1) {
+        fwrite(&client, sizeof(ClientData), 1, backup);
+    }
+
+    fclose(backup);
+    printf("Data backed up to \"%s\" successfully.\n", BACKUP_FILE);
+} // end function backupData
+
+// Restore credit.dat from credit.dat.bak
+// @param fPtrRef - pointer to the file pointer (so we can reopen)
+void restoreData(FILE **fPtrRef)
+{
+    FILE *backup = fopen(BACKUP_FILE, "rb");
+    if (backup == NULL) {
+        fprintf(stderr, "Error: Backup file \"%s\" not found.\n", BACKUP_FILE);
+        return;
+    }
+
+    printf("Restore from backup? This will overwrite current data. (y/n): ");
+    clearInputBuffer();
+    int ch = getchar();
+    if (ch != 'y' && ch != 'Y') { fclose(backup); printf("Restore cancelled.\n"); return; }
+
+    // close current file, reopen for writing
+    fclose(*fPtrRef);
+    *fPtrRef = fopen("credit.dat", "wb+");
+    if (*fPtrRef == NULL) {
+        fprintf(stderr, "Error: Could not open credit.dat for restore.\n");
+        fclose(backup);
+        exit(-1);
+    }
+
+    ClientData client;
+    while (fread(&client, sizeof(ClientData), 1, backup) == 1) {
+        fwrite(&client, sizeof(ClientData), 1, *fPtrRef);
+    }
+
+    fclose(backup);
+    rewind(*fPtrRef);
+    printf("Data restored from \"%s\" successfully.\n", BACKUP_FILE);
+} // end function restoreData
+
+// Clear the console screen (cross-platform)
+void clearScreen(void)
+{
+    #ifdef _WIN32
+        system("cls");
+    #else
+        system("clear");
+    #endif
+} // end function clearScreen
+
+// Compare two ClientData records by balance (for qsort, descending)
+int compareByBalance(const void *a, const void *b)
+{
+    const ClientData *clientA = (const ClientData *)a;
+    const ClientData *clientB = (const ClientData *)b;
+    if (clientB->balance > clientA->balance) return 1;
+    if (clientB->balance < clientA->balance) return -1;
+    return 0;
+} // end function compareByBalance

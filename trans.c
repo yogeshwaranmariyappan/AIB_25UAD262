@@ -7,13 +7,13 @@
 #define MAX_ACCOUNTS 100 // maximum number of accounts
 
 // clientData structure definition
-struct clientData
+typedef struct clientData
 {
     unsigned int acctNum; // account number
     char lastName[15];    // account last name
     char firstName[10];   // account first name
     double balance;       // account balance
-};                        // end structure clientData
+} ClientData;             // end structure clientData
 
 // prototypes
 unsigned int enterChoice(void);
@@ -25,6 +25,7 @@ void clearInputBuffer();
 
 int main(int argc, char *argv[])
 {
+    (void)argc; // suppress unused parameter warning
     FILE *cfPtr;         // credit.dat file pointer
     unsigned int choice; // user's choice
 
@@ -33,15 +34,15 @@ int main(int argc, char *argv[])
     {
         // If it doesn't exist, create it in write/read binary mode
         if ((cfPtr = fopen("credit.dat", "wb+")) == NULL) {
-            printf("%s: File could not be opened or created.\n", argv[0]);
+            fprintf(stderr, "%s: File could not be opened or created.\n", argv[0]);
             exit(-1);
         }
         
         // Initialize with MAX_ACCOUNTS blank records
-        struct clientData blankClient = {0, "", "", 0.0};
+        ClientData blankClient = {0, "", "", 0.0};
         for (unsigned int i = 1; i <= MAX_ACCOUNTS; ++i) {
-            if (fwrite(&blankClient, sizeof(struct clientData), 1, cfPtr) != 1) {
-                printf("Error: Could not initialize records.\n");
+            if (fwrite(&blankClient, sizeof(ClientData), 1, cfPtr) != 1) {
+                fprintf(stderr, "Error: Could not initialize records.\n");
                 fclose(cfPtr);
                 exit(-1);
             }
@@ -86,12 +87,12 @@ void textFile(FILE *readPtr)
 {
     FILE *writePtr; // accounts.txt file pointer
     // create clientData with default information
-    struct clientData client = {0, "", "", 0.0};
+    ClientData client = {0, "", "", 0.0};
 
     // fopen opens the file; exits if file cannot be opened
     if ((writePtr = fopen("accounts.txt", "w")) == NULL)
     {
-        puts("File could not be opened.");
+        fprintf(stderr, "File could not be opened.\n");
     } // end if
     else
     {
@@ -99,7 +100,7 @@ void textFile(FILE *readPtr)
         fprintf(writePtr, "%-6s%-16s%-11s%10s\n", "Acct", "Last Name", "First Name", "Balance");
 
         // copy all records from random-access file into text file
-        while (fread(&client, sizeof(struct clientData), 1, readPtr) == 1)
+        while (fread(&client, sizeof(ClientData), 1, readPtr) == 1)
         {
             // write single record to text file
             if (client.acctNum != 0)
@@ -119,7 +120,7 @@ void updateRecord(FILE *fPtr)
     unsigned int account; // account number
     double transaction;   // transaction amount
     // create clientData with no information
-    struct clientData client = {0, "", "", 0.0};
+    ClientData client = {0, "", "", 0.0};
 
     // obtain number of account to update
     printf("Enter account to update ( 1 - %d ): ", MAX_ACCOUNTS);
@@ -129,13 +130,13 @@ void updateRecord(FILE *fPtr)
     }
 
     // move file pointer to correct record in file
-    if (fseek(fPtr, (long)(account - 1) * sizeof(struct clientData), SEEK_SET) != 0) {
-        printf("Error: Could not seek to account #%u.\n", account);
+    if (fseek(fPtr, (long)(account - 1) * sizeof(ClientData), SEEK_SET) != 0) {
+        fprintf(stderr, "Error: Could not seek to account #%u.\n", account);
         return;
     }
     // read record from file
-    if (fread(&client, sizeof(struct clientData), 1, fPtr) != 1) {
-        printf("Error: Could not read account #%u.\n", account);
+    if (fread(&client, sizeof(ClientData), 1, fPtr) != 1) {
+        fprintf(stderr, "Error: Could not read account #%u.\n", account);
         return;
     }
     // display error if account does not exist
@@ -173,13 +174,13 @@ void updateRecord(FILE *fPtr)
 
         // move file pointer to correct record in file
         // move back by 1 record length
-        if (fseek(fPtr, -(long)sizeof(struct clientData), SEEK_CUR) != 0) {
-            printf("Error: Could not seek to update record.\n");
+        if (fseek(fPtr, -(long)sizeof(ClientData), SEEK_CUR) != 0) {
+            fprintf(stderr, "Error: Could not seek to update record.\n");
             return;
         }
         // write updated record over old record in file
-        if (fwrite(&client, sizeof(struct clientData), 1, fPtr) != 1) {
-            printf("Error: Could not write updated record.\n");
+        if (fwrite(&client, sizeof(ClientData), 1, fPtr) != 1) {
+            fprintf(stderr, "Error: Could not write updated record.\n");
             return;
         }
     } // end else
@@ -188,8 +189,8 @@ void updateRecord(FILE *fPtr)
 // delete an existing record
 void deleteRecord(FILE *fPtr)
 {
-    struct clientData client;                       // stores record read from file
-    struct clientData blankClient = {0, "", "", 0}; // blank client
+    ClientData client;                       // stores record read from file
+    ClientData blankClient = {0, "", "", 0}; // blank client
     unsigned int accountNum;                        // account number
 
     // obtain number of account to delete
@@ -200,13 +201,13 @@ void deleteRecord(FILE *fPtr)
     }
 
     // move file pointer to correct record in file
-    if (fseek(fPtr, (long)(accountNum - 1) * sizeof(struct clientData), SEEK_SET) != 0) {
-        printf("Error: Could not seek to account #%u.\n", accountNum);
+    if (fseek(fPtr, (long)(accountNum - 1) * sizeof(ClientData), SEEK_SET) != 0) {
+        fprintf(stderr, "Error: Could not seek to account #%u.\n", accountNum);
         return;
     }
     // read record from file
-    if (fread(&client, sizeof(struct clientData), 1, fPtr) != 1) {
-        printf("Error: Could not read account #%u.\n", accountNum);
+    if (fread(&client, sizeof(ClientData), 1, fPtr) != 1) {
+        fprintf(stderr, "Error: Could not read account #%u.\n", accountNum);
         return;
     }
     // display error if record does not exist
@@ -228,13 +229,13 @@ void deleteRecord(FILE *fPtr)
         }
 
         // move file pointer to correct record in file
-        if (fseek(fPtr, (long)(accountNum - 1) * sizeof(struct clientData), SEEK_SET) != 0) {
-            printf("Error: Could not seek to delete record.\n");
+        if (fseek(fPtr, (long)(accountNum - 1) * sizeof(ClientData), SEEK_SET) != 0) {
+            fprintf(stderr, "Error: Could not seek to delete record.\n");
             return;
         }
         // replace existing record with blank record
-        if (fwrite(&blankClient, sizeof(struct clientData), 1, fPtr) != 1) {
-            printf("Error: Could not delete record.\n");
+        if (fwrite(&blankClient, sizeof(ClientData), 1, fPtr) != 1) {
+            fprintf(stderr, "Error: Could not delete record.\n");
             return;
         }
         printf("Account #%d deleted successfully.\n", accountNum);
@@ -245,7 +246,7 @@ void deleteRecord(FILE *fPtr)
 void newRecord(FILE *fPtr)
 {
     // create clientData with default information
-    struct clientData client = {0, "", "", 0.0};
+    ClientData client = {0, "", "", 0.0};
     unsigned int accountNum; // account number
 
     // obtain number of account to create
@@ -256,13 +257,13 @@ void newRecord(FILE *fPtr)
     }
 
     // move file pointer to correct record in file
-    if (fseek(fPtr, (long)(accountNum - 1) * sizeof(struct clientData), SEEK_SET) != 0) {
-        printf("Error: Could not seek to account #%u.\n", accountNum);
+    if (fseek(fPtr, (long)(accountNum - 1) * sizeof(ClientData), SEEK_SET) != 0) {
+        fprintf(stderr, "Error: Could not seek to account #%u.\n", accountNum);
         return;
     }
     // read record from file
-    if (fread(&client, sizeof(struct clientData), 1, fPtr) != 1) {
-        printf("Error: Could not read account #%u.\n", accountNum);
+    if (fread(&client, sizeof(ClientData), 1, fPtr) != 1) {
+        fprintf(stderr, "Error: Could not read account #%u.\n", accountNum);
         return;
     }
     // display error if account already exists
@@ -281,13 +282,13 @@ void newRecord(FILE *fPtr)
 
         client.acctNum = accountNum;
         // move file pointer to correct record in file
-        if (fseek(fPtr, (long)(client.acctNum - 1) * sizeof(struct clientData), SEEK_SET) != 0) {
-            printf("Error: Could not seek to insert record.\n");
+        if (fseek(fPtr, (long)(client.acctNum - 1) * sizeof(ClientData), SEEK_SET) != 0) {
+            fprintf(stderr, "Error: Could not seek to insert record.\n");
             return;
         }
         // insert record in file
-        if (fwrite(&client, sizeof(struct clientData), 1, fPtr) != 1) {
-            printf("Error: Could not write new record.\n");
+        if (fwrite(&client, sizeof(ClientData), 1, fPtr) != 1) {
+            fprintf(stderr, "Error: Could not write new record.\n");
             return;
         }
     } // end else
